@@ -17,12 +17,19 @@ EE_DataChannel_t targetChannelList[] = {
 const char header[] = "O1,";
 std::ofstream ofs("data/data.csv",std::ios::trunc);
 ofImage upArrow, leftArrow, rightArrow;
+ofxXmlSettings settings;
+
+string com, stream = "";
+
 bool resultReceived, start = false;
 int result = -1;
 clock_t t1, t2;
 int r = 0;
 //--------------------------------------------------------------
 void ofApp::setup(){
+    settings.loadFile("settings.xml");
+    stream = settings.getValue("settings:stream","stream");
+    com = settings.getValue("settings:com","comport");
 
     font.loadFont("font.ttf", 32);
 
@@ -42,31 +49,6 @@ void ofApp::setup(){
     ofSetFrameRate(30);
     loadCameras();
 
-    // initialize connection
-    for(std::size_t i = 0; i < NUM_CAMERAS; i++)
-    {
-        IPCameraDef& cam = getNextCamera();
-
-        SharedIPVideoGrabber c = IPVideoGrabber::makeShared();
-
-        // if your camera uses standard web-based authentication, use this
-        // c->setUsername(cam.username);
-        // c->setPassword(cam.password);
-
-        // if your camera uses cookies for authentication, use something like this:
-        // c->setCookie("user", cam.username);
-        // c->setCookie("password", cam.password);
-
-        c->setCameraName(cam.getName());
-        c->setURI(cam.getURL());
-        c->connect(); // connect immediately
-
-        // if desired, set up a video resize listener
-        ofAddListener(c->videoResized, this, &ofApp::videoResized);
-
-        grabbers.push_back(c);
-
-    }
     ofSetVerticalSync(true);
 
 	bSendSerialMessage = false;
@@ -77,10 +59,7 @@ void ofApp::setup(){
 	// (ie, COM4 on a pc, /dev/tty.... on linux, /dev/tty... on a mac)
 	// arduino users check in arduino app....
 	int baud = 9600;
-	//serial.setup(0, baud); //open the first device
-	serial.setup("COM3", baud); // windows example
-	//serial.setup("/dev/tty.usbserial-A4001JEC", baud); // mac osx example
-	//serial.setup("/dev/ttyUSB0", baud); //linux example
+	serial.setup(com, baud); // connect to COM port at 9600
 
 	nTimesRead = 0;
 	nBytesRead = 0;
@@ -112,49 +91,17 @@ void ofApp::loadCameras()
     //ipcams.push_back(IPCameraDef("http://148.61.142.228/axis-cgi/mjpg/video.cgi", "username", "password"));
 
 	ofLog(OF_LOG_NOTICE, "---------------Loading Streams---------------");
-    ipcams.push_back(IPCameraDef("http://192.168.0.3:8080/video")); // home
-    //ipcams.push_back(IPCameraDef("http://10.170.168.100:8080/video")); // uni
-//	ofxXmlSettings XML;
-//
-//	if(XML.loadFile("streams.xml"))
-//    {
-//
-//        XML.pushTag("streams");
-//        std::string tag = "stream";
-//
-//		int nCams = XML.getNumTags(tag);
-//
-//		for(std::size_t n = 0; n < nCams; n++)
-//        {
-//
-//            IPCameraDef def(XML.getAttribute(tag, "name", "", n),
-//                            XML.getAttribute(tag, "url", "", n),
-//                            XML.getAttribute(tag, "username", "", n),
-//                            XML.getAttribute(tag, "password", "", n));
-//
-//
-//            std::string logMessage = "STREAM LOADED: " + def.getName() +
-//			" url: " +  def.getURL() +
-//			" username: " + def.getUsername() +
-//			" password: " + def.getPassword();
-//
-//            ofLogNotice() << logMessage;
-//
-//            ipcams.push_back(def);
-//
-//		}
-//
-//		XML.popTag();
-//
-//	}
-//    else
-//    {
-//		ofLog(OF_LOG_ERROR, "Unable to load streams.xml.");
-//	}
-//
+    std::cout << "Connecting to: " << stream << std::endl;
+    ipcams.push_back(IPCameraDef(stream)); // home
     ofLog(OF_LOG_NOTICE, "-----------Loading Streams Complete----------");
-//
-//    nextCamera = ipcams.size();
+    IPCameraDef& cam = getNextCamera();
+    SharedIPVideoGrabber c = IPVideoGrabber::makeShared();
+    c->setCameraName(cam.getName());
+    c->setURI(cam.getURL());
+    c->connect(); // connect immediately
+    // if desired, set up a video resize listener
+    ofAddListener(c->videoResized, this, &ofApp::videoResized);
+    grabbers.push_back(c);
 }
 //------------------------------------------------------------------------------
 void ofApp::videoResized(const void* sender, ofResizeEventArgs& arg)
@@ -330,7 +277,6 @@ void ofApp::keyPressed(int key){
             Poco::URI uri(cam.getURL());
             c->setURI(uri);
             c->connect();
-
             grabbers[i] = c;
         }
     }
@@ -535,41 +481,41 @@ void ofApp::mouseDragged(int x, int y, int button){
 }
 //--------------------------------------------------------------
 void ofApp::mousePressed(int x, int y, int button){
- int w = ofGetWidth() / NUM_COLS;
-    int h = ofGetHeight() / NUM_ROWS;
-    //top row
-    //left
-    if(x > 0 && x < w/3 && y < h/3 && y > 0){
-        moveForwardLeft();
-    //middle
-    } else if(x > w/3 && x < 2*(w/3) && y < h/3 && y > 0){
-        moveForward();
-    //right
-    } else if(x > 2*(w/3) && x < w && y < h/3 && y > 0){
-        moveForwardRight();
-
-    //middle row
-    //left
-    } else if(x > 0 && x < (w/3) && y < 2*(h/3) && y > (h/3) ){
-        moveLeft();
-    //middle
-    } else if(x > w/3 && x < 2*(w/3) && y < 2*(h/3) && y > (h/3) ){
-        serial.writeByte('s');
-    //right1
-    } else if (x > 2*(w/3) && x < w && y < 2*(h/3) && y > (h/3)){
-        moveRight();
-
-   //botton row
-    //left
-    } else if(x > 0 && x < w/3 && y > 2*(h/3) && y < h ){
-        moveBackwardsLeft();
-    //middle
-    } else if(x > w/3 && x < 2*(w/3) && y > 2*(h/3) && y < h){
-        moveBackwards();
-    //right
-    } else if(x > 2*(w/3) && x < w && y > 2*(h/3) && y < h ){
-        moveBackwardsRight();
-    }
+//    int w = ofGetWidth() / NUM_COLS;
+//    int h = ofGetHeight() / NUM_ROWS;
+//    //top row
+//    //left
+//    if(x > 0 && x < w/3 && y < h/3 && y > 0){
+//        moveForwardLeft();
+//    //middle
+//    } else if(x > w/3 && x < 2*(w/3) && y < h/3 && y > 0){
+//        moveForward();
+//    //right
+//    } else if(x > 2*(w/3) && x < w && y < h/3 && y > 0){
+//        moveForwardRight();
+//
+//    //middle row
+//    //left
+//    } else if(x > 0 && x < (w/3) && y < 2*(h/3) && y > (h/3) ){
+//        moveLeft();
+//    //middle
+//    } else if(x > w/3 && x < 2*(w/3) && y < 2*(h/3) && y > (h/3) ){
+//        serial.writeByte('s');
+//    //right1
+//    } else if (x > 2*(w/3) && x < w && y < 2*(h/3) && y > (h/3)){
+//        moveRight();
+//
+//   //botton row
+//    //left
+//    } else if(x > 0 && x < w/3 && y > 2*(h/3) && y < h ){
+//        moveBackwardsLeft();
+//    //middle
+//    } else if(x > w/3 && x < 2*(w/3) && y > 2*(h/3) && y < h){
+//        moveBackwards();
+//    //right
+//    } else if(x > 2*(w/3) && x < w && y > 2*(h/3) && y < h ){
+//        moveBackwardsRight();
+//    }
 }
 //--------------------------------------------------------------
 void ofApp::moveForwardLeft(){

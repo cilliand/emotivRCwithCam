@@ -90,7 +90,7 @@ class ofApp : public ofBaseApp {
 		ofxOscReceiver receiver;
         ofBuffer imgAsBuffer;
         ofImage img;
-
+        ofxXmlSettings settings;
         DataHandle hData;
 
         std::vector<SharedIPVideoGrabber> grabbers;
