@@ -2317,11 +2317,11 @@
 
 1422442203 source:c:\users\cillian\dropbox\oframeworks dev\of_v0.8.4_win_cb_release\apps\myapps\emotivrcwithcam\icon.rc
 
-1426026951 source:c:\users\cillian\dropbox\oframeworks dev\of_v0.8.4_win_cb_release\apps\myapps\emotivrcwithcam\src\main.cpp
+1426029832 source:c:\users\cillian\dropbox\oframeworks dev\of_v0.8.4_win_cb_release\apps\myapps\emotivrcwithcam\src\main.cpp
 	"ofMain.h"
 	"ofApp.h"
 
-1426026302 c:\users\cillian\dropbox\oframeworks dev\of_v0.8.4_win_cb_release\apps\myapps\emotivrcwithcam\src\ofapp.h
+1426031780 c:\users\cillian\dropbox\oframeworks dev\of_v0.8.4_win_cb_release\apps\myapps\emotivrcwithcam\src\ofapp.h
 	"ofMain.h"
 	"ofxOsc.h"
 	"ofxXmlSettings.h"

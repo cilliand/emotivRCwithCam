@@ -17,13 +17,15 @@ EE_DataChannel_t targetChannelList[] = {
 const char header[] = "O1,";
 std::ofstream ofs("data/data.csv",std::ios::trunc);
 ofImage upArrow, leftArrow, rightArrow;
-bool resultReceived = false;
+bool resultReceived, start = false;
 int result = -1;
 clock_t t1, t2;
 int r = 0;
 //--------------------------------------------------------------
 void ofApp::setup(){
-    t1 = clock();
+
+    font.loadFont("font.ttf", 32);
+
     upArrow.loadImage("images/up.png");
     leftArrow.loadImage("images/left.png");
     rightArrow.loadImage("images/right.png");
@@ -90,6 +92,7 @@ void ofApp::setup(){
     ofxOscMessage m;
     m.setAddress("/start");
     sender.sendMessage(m);
+    t1 = clock();
 }
 //------------------------------------------------------------------------------
 IPCameraDef& ofApp::getNextCamera()
@@ -242,64 +245,69 @@ void ofApp::update(){
 }
 //--------------------------------------------------------------
 void ofApp::draw(){
-
-    if(r >= 3){
-        r = 0;
-    }
-    ofBackground(0);
-	// display instructions
-	ofPushStyle();
-	ofSetColor(255);
-	string buf;
-	buf = "sending osc:" + string(HOST) + " " + ofToString(PORT);
-	ofDrawBitmapString(buf, 10, 20);
-    ofPopStyle();
-
-    camAndSerialDraw();
-    if(resultReceived == false){
-        if(r == 0){
-            upArrow.draw((ofGetWidth()/2)-32,0, 64, 64);
-            ofSleepMillis(150);
-            ofxOscMessage m;
-            m.setAddress("/st");
-            m.addIntArg(0);
-            sender.sendMessage(m);
-        } else if(r == 1){
-            leftArrow.draw(0,ofGetHeight()/2, 64, 64);
-            ofSleepMillis(150);
-            ofxOscMessage m;
-            m.setAddress("/st");
-            m.addIntArg(1);
-            sender.sendMessage(m);
-        } else if(r == 2){
-            rightArrow.draw(ofGetWidth()-64,ofGetHeight()/2, 64, 64);
-            ofSleepMillis(150);
-            ofxOscMessage m;
-            m.setAddress("/st");
-            m.addIntArg(2);
-            sender.sendMessage(m);
-        }
+    if(!start){
+        string welcome = "Emotiv EPOC Controlled RC Car";
+        ofBackground(0);
+        font.drawString(welcome, (ofGetWidth()/2)-font.stringWidth(welcome)/2,(ofGetHeight()/2)-font.stringHeight(welcome)/2);
+        font.drawString("PRESS SPACE TO BEGIN", (ofGetWidth()/2)-font.stringWidth("PRESS SPACE TO BEGIN")/2,20+(ofGetHeight()/2)+font.stringHeight(welcome)/2);
     } else {
-
-        string decision;
-        decision = "Moving: ";
-        if(result == 0){
-            decision += "FORWARD.";
-            //upArrow.draw((ofGetWidth()/2)-32,0, 64, 64);
-        } else if(result == 1){
-            decision += "LEFT.";
-            //leftArrow.draw(0,ofGetHeight()/2, 64, 64);
-        } else if(result == 2){
-            decision += "RIGHT.";
-            //rightArrow.draw(ofGetWidth()-64,ofGetHeight()/2, 64, 64);
+        if(r >= 3){
+            r = 0;
         }
+        ofBackground(0);
+        // display instructions
         ofPushStyle();
         ofSetColor(255);
-        ofDrawBitmapString(decision, 10, ofGetHeight()-20);
+        string buf;
+        buf = "sending osc:" + string(HOST) + " " + ofToString(PORT);
+        ofDrawBitmapString(buf, 10, 20);
         ofPopStyle();
-    }
-    r++;
 
+        camAndSerialDraw();
+        if(resultReceived == false){
+            if(r == 0){
+                upArrow.draw((ofGetWidth()/2)-32,0, 64, 64);
+                ofSleepMillis(150);
+                ofxOscMessage m;
+                m.setAddress("/st");
+                m.addIntArg(0);
+                sender.sendMessage(m);
+            } else if(r == 1){
+                leftArrow.draw(0,ofGetHeight()/2, 64, 64);
+                ofSleepMillis(150);
+                ofxOscMessage m;
+                m.setAddress("/st");
+                m.addIntArg(1);
+                sender.sendMessage(m);
+            } else if(r == 2){
+                rightArrow.draw(ofGetWidth()-64,ofGetHeight()/2, 64, 64);
+                ofSleepMillis(150);
+                ofxOscMessage m;
+                m.setAddress("/st");
+                m.addIntArg(2);
+                sender.sendMessage(m);
+            }
+        } else {
+
+            string decision;
+            decision = "Moving: ";
+            if(result == 0){
+                decision += "FORWARD.";
+                //upArrow.draw((ofGetWidth()/2)-32,0, 64, 64);
+            } else if(result == 1){
+                decision += "LEFT.";
+                //leftArrow.draw(0,ofGetHeight()/2, 64, 64);
+            } else if(result == 2){
+                decision += "RIGHT.";
+                //rightArrow.draw(ofGetWidth()-64,ofGetHeight()/2, 64, 64);
+            }
+            ofPushStyle();
+            ofSetColor(255);
+            ofDrawBitmapString(decision, 10, ofGetHeight()-20);
+            ofPopStyle();
+        }
+        r++;
+    }
 }
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
@@ -309,7 +317,7 @@ void ofApp::keyPressed(int key){
         sender.sendMessage(m);
     }
     //camera refresh
-    if(key == ' ')
+    if(key == 'R' || key == 'r')
     {
         // initialize connection
         for(std::size_t i = 0; i < NUM_CAMERAS; i++)
@@ -325,6 +333,10 @@ void ofApp::keyPressed(int key){
 
             grabbers[i] = c;
         }
+    }
+
+    if(key == ' ' and !start){
+        start = true;
     }
 
 }

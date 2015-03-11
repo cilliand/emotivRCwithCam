@@ -22,6 +22,8 @@
 				<Linker>
 					<Add option="-s" />
 					<Add option="../../../libs/openFrameworksCompiled/lib/win_cb/openFrameworks.lib" />
+					<Add library="lib\edk.lib" />
+					<Add library="lib\edk_utils.lib" />
 				</Linker>
 			</Target>
 			<Target title="debug">
