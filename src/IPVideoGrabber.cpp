@@ -92,7 +92,7 @@ IPVideoGrabber::IPVideoGrabber(): ofBaseVideoDraws(), ofThread()
     autoReconnect  = true;
 
     reconnectCount_a = 0;
-    maxReconnects = 1;
+    maxReconnects = 10;
 
     autoRetryDelay_a = 1000; // at least 1 second retry delay
     nextAutoRetry_a = 0;

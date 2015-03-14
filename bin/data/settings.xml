@@ -1,0 +1,7 @@
+<settings>
+<stream>http://192.168.0.5:8080/video</stream>
+<com>COM3</com>
+<stimDelay>150</stimDelay>
+<stimLength></stimLength>
+<decisionDelay></decisionDelay>
+</settings>

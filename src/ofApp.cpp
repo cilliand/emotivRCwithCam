@@ -21,10 +21,14 @@ ofxXmlSettings settings;
 
 string com, stream = "";
 
-bool resultReceived, start = false;
+bool startAgain, resultReceived, start, moveable = false;
 int result = -1;
+
 clock_t t1, t2;
-int r = 0;
+clock_t stimTimer1, stimTimer2;
+
+int stimNumber = 0;
+int lastStim = -1;
 //--------------------------------------------------------------
 void ofApp::setup(){
     settings.loadFile("settings.xml");
@@ -121,18 +125,35 @@ void ofApp::videoResized(const void* sender, ofResizeEventArgs& arg)
 }
 //--------------------------------------------------------------
 void ofApp::update(){
-    camAndSerialUpdate();
 
-    t2=clock();
-    if((t2-t1)/CLOCKS_PER_SEC >= 2){
+    if(receiver.hasWaitingMessages()){
+            ofxOscMessage msg;
+            while(receiver.getNextMessage(&msg)) {
+                 if (msg.getAddress() == "/r"){
+                    resultReceived = true;
+                    result = msg.getArgAsInt32(0);
+                    std::cout << result << std::endl;
+                 }
+            }
+        }
+
+    if(startAgain){
         ofxOscMessage m;
-        m.setAddress("/end");
+        m.setAddress("/start");
         sender.sendMessage(m);
         t1 = clock();
-        //ofExit(0);
-    } else {
-    state = EE_EngineGetNextEvent(eEvent);
-    if (state == EDK_OK) {
+        startAgain = false;
+    }
+    if(start){
+        camAndSerialUpdate();
+        t2=clock();
+
+        if((t2-t1)/CLOCKS_PER_SEC < 9.0){
+
+
+
+        state = EE_EngineGetNextEvent(eEvent);
+        if (state == EDK_OK) {
 
 				EE_Event_t eventType = EE_EmoEngineEventGetType(eEvent);
 				EE_EmoEngineEventGetUserId(eEvent, &userID);
@@ -146,6 +167,22 @@ void ofApp::update(){
 			}
 
 			if (readytocollect) {
+                stimTimer2 = clock();
+                if((stimTimer2-stimTimer1) / CLOCKS_PER_SEC > 1){
+                    lastStim = stimNumber;
+                    stimNumber++;
+                    if(stimNumber >= 3){
+                        stimNumber = 0;
+                    }
+                    stimTimer1 = clock();
+
+                }
+                if(stimNumber != lastStim){
+                    ofxOscMessage m;
+                    m.setAddress("/st");
+                    m.addIntArg(stimNumber);
+                    sender.sendMessage(m);
+                }
 
                     EE_DataUpdateHandle(0, hData);
 
@@ -164,7 +201,7 @@ void ofApp::update(){
                         EE_DataGetMultiChannels(hData, targetChannelList, channelCount, buffer, nSamplesTaken);
                         for (int sampleIdx=0 ; sampleIdx<(int)nSamplesTaken ; ++ sampleIdx) {
                             for (int i = 0 ; i<sizeof(targetChannelList)/sizeof(EE_DataChannel_t) ; i++) {
-                                std::cout << buffer[i][sampleIdx] << std::endl;
+                                //std::cout << buffer[i][sampleIdx] << std::endl;
                                 ofxOscMessage m;
                                 m.setAddress("/d");
                                 m.addFloatArg(buffer[i][sampleIdx]);
@@ -179,16 +216,16 @@ void ofApp::update(){
 
 			}
 			Sleep(100);
-        if(receiver.hasWaitingMessages()){
-            ofxOscMessage msg;
-            while(receiver.getNextMessage(&msg)) {
-                 if (msg.getAddress() == "/r"){
-                    resultReceived = true;
-                    result = msg.getArgAsInt32(0);
-                 }
-            }
+
+        } else {
+
+            ofxOscMessage m;
+            m.setAddress("/end");
+            sender.sendMessage(m);
+            //startAgain = true;
         }
-        }
+    }
+
 }
 //--------------------------------------------------------------
 void ofApp::draw(){
@@ -198,9 +235,6 @@ void ofApp::draw(){
         font.drawString(welcome, (ofGetWidth()/2)-font.stringWidth(welcome)/2,(ofGetHeight()/2)-font.stringHeight(welcome)/2);
         font.drawString("PRESS SPACE TO BEGIN", (ofGetWidth()/2)-font.stringWidth("PRESS SPACE TO BEGIN")/2,20+(ofGetHeight()/2)+font.stringHeight(welcome)/2);
     } else {
-        if(r >= 3){
-            r = 0;
-        }
         ofBackground(0);
         // display instructions
         ofPushStyle();
@@ -212,48 +246,52 @@ void ofApp::draw(){
 
         camAndSerialDraw();
         if(resultReceived == false){
-            if(r == 0){
+            if(stimNumber == 0){
                 upArrow.draw((ofGetWidth()/2)-32,0, 64, 64);
-                ofSleepMillis(150);
-                ofxOscMessage m;
-                m.setAddress("/st");
-                m.addIntArg(0);
-                sender.sendMessage(m);
-            } else if(r == 1){
+                //ofSleepMillis(150);
+
+            } else if(stimNumber == 1){
                 leftArrow.draw(0,ofGetHeight()/2, 64, 64);
-                ofSleepMillis(150);
-                ofxOscMessage m;
-                m.setAddress("/st");
-                m.addIntArg(1);
-                sender.sendMessage(m);
-            } else if(r == 2){
+                //ofSleepMillis(150);
+//                ofxOscMessage m;
+//                m.setAddress("/st");
+//                m.addIntArg(1);
+//                sender.sendMessage(m);
+            } else if(stimNumber == 2){
                 rightArrow.draw(ofGetWidth()-64,ofGetHeight()/2, 64, 64);
-                ofSleepMillis(150);
-                ofxOscMessage m;
-                m.setAddress("/st");
-                m.addIntArg(2);
-                sender.sendMessage(m);
+                //ofSleepMillis(150);
+//                ofxOscMessage m;
+//                m.setAddress("/st");
+//                m.addIntArg(2);
+//                sender.sendMessage(m);
             }
         } else {
-
             string decision;
             decision = "Moving: ";
             if(result == 0){
                 decision += "FORWARD.";
+                if(moveable)
+                    moveForward();
                 //upArrow.draw((ofGetWidth()/2)-32,0, 64, 64);
             } else if(result == 1){
                 decision += "LEFT.";
+                if(moveable)
+                    moveForwardLeft();
                 //leftArrow.draw(0,ofGetHeight()/2, 64, 64);
             } else if(result == 2){
                 decision += "RIGHT.";
+                if(moveable)
+                    moveForwardRight();
                 //rightArrow.draw(ofGetWidth()-64,ofGetHeight()/2, 64, 64);
             }
             ofPushStyle();
             ofSetColor(255);
             ofDrawBitmapString(decision, 10, ofGetHeight()-20);
+            std::cout << "Result: " << decision << std::endl;
             ofPopStyle();
+            resultReceived = false;
+            startAgain = true;
         }
-        r++;
     }
 }
 //--------------------------------------------------------------
@@ -281,8 +319,12 @@ void ofApp::keyPressed(int key){
         }
     }
 
-    if(key == ' ' and !start){
+    if(key == ' ' && !start){
         start = true;
+        stimTimer1 = clock();
+    }
+    if(key == ' ' && start){
+        moveable = true;
     }
 
 }
@@ -469,7 +511,9 @@ void ofApp::camAndSerialDraw(){
 }
 //--------------------------------------------------------------
 void ofApp::keyReleased(int key){
-
+    if(key == ' ' && start){
+        moveable = false;
+    }
 }
 //--------------------------------------------------------------
 void ofApp::mouseMoved(int x, int y){

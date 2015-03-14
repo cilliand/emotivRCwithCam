@@ -2317,11 +2317,11 @@
 
 1422442203 source:c:\users\cillian\dropbox\oframeworks dev\of_v0.8.4_win_cb_release\apps\myapps\emotivrcwithcam\icon.rc
 
-1426029832 source:c:\users\cillian\dropbox\oframeworks dev\of_v0.8.4_win_cb_release\apps\myapps\emotivrcwithcam\src\main.cpp
+1426072334 source:c:\users\cillian\dropbox\oframeworks dev\of_v0.8.4_win_cb_release\apps\myapps\emotivrcwithcam\src\main.cpp
 	"ofMain.h"
 	"ofApp.h"
 
-1426031780 c:\users\cillian\dropbox\oframeworks dev\of_v0.8.4_win_cb_release\apps\myapps\emotivrcwithcam\src\ofapp.h
+1426071790 c:\users\cillian\dropbox\oframeworks dev\of_v0.8.4_win_cb_release\apps\myapps\emotivrcwithcam\src\ofapp.h
 	"ofMain.h"
 	"ofxOsc.h"
 	"ofxXmlSettings.h"
@@ -2519,10 +2519,10 @@
 
 1350550272 c:\users\cillian\dropbox\oframeworks dev\of_v0.8.4_win_cb_release\apps\myapps\emotivrcwithcam\src\edkerrorcode.h
 
-1426029070 source:c:\users\cillian\dropbox\oframeworks dev\of_v0.8.4_win_cb_release\apps\myapps\emotivrcwithcam\src\ofapp.cpp
+1426244620 source:c:\users\cillian\dropbox\oframeworks dev\of_v0.8.4_win_cb_release\apps\myapps\emotivrcwithcam\src\ofapp.cpp
 	"ofApp.h"
 
-1423573378 source:c:\users\cillian\dropbox\oframeworks dev\of_v0.8.4_win_cb_release\apps\myapps\emotivrcwithcam\src\ipvideograbber.cpp
+1426244056 source:c:\users\cillian\dropbox\oframeworks dev\of_v0.8.4_win_cb_release\apps\myapps\emotivrcwithcam\src\ipvideograbber.cpp
 	"IPVideoGrabber.h"
 
 1423745400 source:d:\users\ausu\dropbox\oframeworks dev\of_v0.8.4_win_cb_release\addons\ofxmaxim\libs\fft.cpp
