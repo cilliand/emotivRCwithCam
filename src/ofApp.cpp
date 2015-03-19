@@ -10,18 +10,22 @@ bool readytocollect					= false;
 int option							= 0;
 int state							= 0;
 int stimIndex                       = 0;
+
 EE_DataChannel_t targetChannelList[] = {
 		ED_O1
 	};
 
-const char header[] = "O1,";
-std::ofstream ofs("data/data.csv",std::ios::trunc);
+const char header[] = "O1, STIM,";
+
 ofImage upArrow, leftArrow, rightArrow;
+ofImage gUpArrow, gLeftArrow, gRightArrow;
+
 ofxXmlSettings settings;
 
 string com, stream = "";
 
 bool startAgain, resultReceived, start, moveable = false;
+bool stimChanged = true;
 int result = -1;
 
 clock_t t1, t2;
@@ -29,8 +33,16 @@ clock_t stimTimer1, stimTimer2;
 
 int stimNumber = 0;
 int lastStim = -1;
+float feedbackX, feedbackY, moveX, moveY;
+std::ofstream ofs("eegLog.csv",std::ios::trunc);
 //--------------------------------------------------------------
 void ofApp::setup(){
+
+    ofs << header << std::endl;
+
+    moveX = 0;
+    moveY = 0;
+
     settings.loadFile("settings.xml");
     stream = settings.getValue("settings:stream","stream");
     com = settings.getValue("settings:com","comport");
@@ -41,12 +53,18 @@ void ofApp::setup(){
     leftArrow.loadImage("images/left.png");
     rightArrow.loadImage("images/right.png");
 
+    gUpArrow.loadImage("images/gup.png");
+    gLeftArrow.loadImage("images/gleft.png");
+    gRightArrow.loadImage("images/gright.png");
+
+
 	ofBackground(255);
     if (EE_EngineConnect() != EDK_OK) {
 					throw "Emotiv Engine start up failed.";
     }
 	// open an outgoing connection to HOST:PORT
 	sender.setup(HOST, PORT);
+	stimSender.setup(HOST, 7401);
     receiver.setup(7402);
 
     ofSetLogLevel(OF_LOG_VERBOSE);
@@ -131,7 +149,7 @@ void ofApp::update(){
             while(receiver.getNextMessage(&msg)) {
                  if (msg.getAddress() == "/r"){
                     resultReceived = true;
-                    result = msg.getArgAsInt32(0);
+                    result = msg.getArgAsFloat(0);
                     std::cout << result << std::endl;
                  }
             }
@@ -145,7 +163,7 @@ void ofApp::update(){
         startAgain = false;
     }
     if(start){
-        camAndSerialUpdate();
+        //camAndSerialUpdate();
         t2=clock();
 
         if((t2-t1)/CLOCKS_PER_SEC < 9.0){
@@ -169,19 +187,21 @@ void ofApp::update(){
 			if (readytocollect) {
                 stimTimer2 = clock();
                 if((stimTimer2-stimTimer1) / CLOCKS_PER_SEC > 1){
-                    lastStim = stimNumber;
+
                     stimNumber++;
                     if(stimNumber >= 3){
                         stimNumber = 0;
                     }
+                    stimChanged = true;
                     stimTimer1 = clock();
-
                 }
-                if(stimNumber != lastStim){
+
+                if(stimChanged){
                     ofxOscMessage m;
                     m.setAddress("/st");
                     m.addIntArg(stimNumber);
-                    sender.sendMessage(m);
+                    stimSender.sendMessage(m);
+                    stimChanged = false;
                 }
 
                     EE_DataUpdateHandle(0, hData);
@@ -199,11 +219,13 @@ void ofApp::update(){
                             buffer[i] = new double[nSamplesTaken];
 
                         EE_DataGetMultiChannels(hData, targetChannelList, channelCount, buffer, nSamplesTaken);
-                        for (int sampleIdx=0 ; sampleIdx<(int)nSamplesTaken ; ++ sampleIdx) {
+                        for (int sampleIdx=0 ; sampleIdx<(int)nSamplesTaken ; ++sampleIdx) {
                             for (int i = 0 ; i<sizeof(targetChannelList)/sizeof(EE_DataChannel_t) ; i++) {
                                 //std::cout << buffer[i][sampleIdx] << std::endl;
                                 ofxOscMessage m;
                                 m.setAddress("/d");
+                                //std::cout <<"1: "<< buffer[i][sampleIdx] << " 2: " << buffer[i][sampleIdx+1] << " SUM: " << buffer[i][sampleIdx]+buffer[i][sampleIdx+1] << " AVG: " << (buffer[i][sampleIdx]+buffer[i][sampleIdx+1])/2 << std::endl;
+                                ofs << buffer[i][sampleIdx] << ", " << ofToString(stimNumber) << ", " << std::endl;
                                 m.addFloatArg(buffer[i][sampleIdx]);
                                 sender.sendMessage(m);
                             }
@@ -213,22 +235,23 @@ void ofApp::update(){
 							delete buffer;
 
 						}
-
 			}
-			Sleep(100);
+			//Sleep(100);
 
         } else {
-
             ofxOscMessage m;
             m.setAddress("/end");
             sender.sendMessage(m);
-            //startAgain = true;
+            startAgain = true;
         }
     }
 
 }
 //--------------------------------------------------------------
 void ofApp::draw(){
+    feedbackX = ofGetWidth()/2 + moveX;
+    feedbackY = ofGetHeight() - 100 + moveY;
+
     if(!start){
         string welcome = "Emotiv EPOC Controlled RC Car";
         ofBackground(0);
@@ -242,44 +265,40 @@ void ofApp::draw(){
         string buf;
         buf = "sending osc:" + string(HOST) + " " + ofToString(PORT);
         ofDrawBitmapString(buf, 10, 20);
+        ofCircle(feedbackX,feedbackY,100);
         ofPopStyle();
 
-        camAndSerialDraw();
-        if(resultReceived == false){
-            if(stimNumber == 0){
-                upArrow.draw((ofGetWidth()/2)-32,0, 64, 64);
-                //ofSleepMillis(150);
+        gUpArrow.draw((ofGetWidth()/2)-128,0, 256, 256);
+        gLeftArrow.draw(0,(ofGetHeight()/2)-128, 256, 256);
+        gRightArrow.draw(ofGetWidth()-256,(ofGetHeight()/2)-128, 256, 256);
 
-            } else if(stimNumber == 1){
-                leftArrow.draw(0,ofGetHeight()/2, 64, 64);
-                //ofSleepMillis(150);
-//                ofxOscMessage m;
-//                m.setAddress("/st");
-//                m.addIntArg(1);
-//                sender.sendMessage(m);
-            } else if(stimNumber == 2){
-                rightArrow.draw(ofGetWidth()-64,ofGetHeight()/2, 64, 64);
-                //ofSleepMillis(150);
-//                ofxOscMessage m;
-//                m.setAddress("/st");
-//                m.addIntArg(2);
-//                sender.sendMessage(m);
+        //camAndSerialDraw();
+        if(resultReceived == false){
+            if(stimNumber == 0){ //up arrow
+                leftArrow.draw(0,(ofGetHeight()/2)-128, 256, 256);
+            } else if(stimNumber == 1){ //left arrow
+                upArrow.draw((ofGetWidth()/2)-128,0, 256, 256);
+            } else if(stimNumber == 2){ //right arrow
+                rightArrow.draw(ofGetWidth()-256,(ofGetHeight()/2)-128, 256, 256);
             }
         } else {
             string decision;
             decision = "Moving: ";
-            if(result == 0){
+            if(result == 1){
                 decision += "FORWARD.";
+                moveY -= 50;
                 if(moveable)
                     moveForward();
                 //upArrow.draw((ofGetWidth()/2)-32,0, 64, 64);
-            } else if(result == 1){
+            } else if(result == 0){
                 decision += "LEFT.";
+                moveX -= 50;
                 if(moveable)
                     moveForwardLeft();
                 //leftArrow.draw(0,ofGetHeight()/2, 64, 64);
             } else if(result == 2){
                 decision += "RIGHT.";
+                 moveX += 50;
                 if(moveable)
                     moveForwardRight();
                 //rightArrow.draw(ofGetWidth()-64,ofGetHeight()/2, 64, 64);
@@ -291,6 +310,7 @@ void ofApp::draw(){
             ofPopStyle();
             resultReceived = false;
             startAgain = true;
+
         }
     }
 }
@@ -375,58 +395,6 @@ void ofApp::camAndSerialUpdate(){
 		bSendSerialMessage = false;
 		readTime = ofGetElapsedTimef();
 	}
-
-    //osc
-    while(receiver.hasWaitingMessages()){
-        // get the next message
-		ofxOscMessage m;
-		receiver.getNextMessage(&m);
-        if(m.getAddress() == "/COG/LEFT"){
-			// both the arguments are int32's
-			mouseX = m.getArgAsFloat(0);
-			moveForwardLeft();
-        }else if(m.getAddress() == "/COG/RIGHT"){
-          	mouseX = m.getArgAsFloat(0);
-			moveForwardRight();
-        }else if(m.getAddress() == "/COG/PUSH"){
-          	mouseX = m.getArgAsFloat(0);
-          	if(m.getArgAsFloat(0) > 0.8){
-                moveForward();
-            }
-        }else if(m.getAddress() == "/COG/PULL"){
-          	mouseX = m.getArgAsFloat(0);
-			moveBackwards();
-        }else{
-			// unrecognized message: display on the bottom of the screen
-//			string msg_string;
-//			msg_string = m.getAddress();
-//			msg_string += ": ";
-//			for(int i = 0; i < m.getNumArgs(); i++){
-//				// get the argument type
-//				msg_string += m.getArgTypeName(i);
-//				msg_string += ":";
-//				// display the argument - make sure we get the right type
-//				if(m.getArgType(i) == OFXOSC_TYPE_INT32){
-//					msg_string += ofToString(m.getArgAsInt32(i));
-//				}
-//				else if(m.getArgType(i) == OFXOSC_TYPE_FLOAT){
-//					msg_string += ofToString(m.getArgAsFloat(i));
-//				}
-//				else if(m.getArgType(i) == OFXOSC_TYPE_STRING){
-//					msg_string += m.getArgAsString(i);
-//				}
-//				else{
-//					msg_string += "unknown";
-//				}
-//			}
-//			// add to the list of strings to display
-//			msg_strings[current_msg_string] = msg_string;
-//			timers[current_msg_string] = ofGetElapsedTimef() + 5.0f;
-//			current_msg_string = (current_msg_string + 1) % NUM_MSG_STRINGS;
-//			// clear the next line
-//			msg_strings[current_msg_string] = "";
-		}
-    }
 }
 //--------------------------------------------------------------
 void ofApp::camAndSerialDraw(){
@@ -448,18 +416,6 @@ void ofApp::camAndSerialDraw(){
 
     for(std::size_t i = 0; i < grabbers.size(); i++)
     {
-    //        x = col * w;
-    //        y = row * h;
-    //
-    //        // draw in a grid
-    //        row = (row + 1) % NUM_ROWS;
-    //
-    //        if(row == 0)
-    //        {
-    //            col = (col + 1) % NUM_COLS;
-    //        }
-
-
         ofPushMatrix();
         ofTranslate(x,y);
         ofSetColor(255,255,255,255);
@@ -492,74 +448,14 @@ void ofApp::camAndSerialDraw(){
 	buf = "listening for osc messages on port" + ofToString(PORT);
 	ofDrawBitmapString(buf, 10, 53);
 
-//    	// draw mouse state
-//	buf = "Command: " + ofToString(mouseX, 4) +  " " + ofToString(mouseY, 4);
-//	ofDrawBitmapString(buf, 430, 20);
-//	ofDrawBitmapString(mouseButtonState, 580, 20);
-//
-//	for(int i = 0; i < NUM_MSG_STRINGS; i++){
-//		ofDrawBitmapString(msg_strings[i], 10, 40 + 15 * i);
-//	}
-
-
     ofDisableAlphaBlending();
 
-//    ofLine(w/3, 0, w/3, h);
-//    ofLine(2*w/3, 0, 2*w/3, h);
-//    ofLine(0, h/3, w, h/3);
-//    ofLine(0, 2*h/3, w, 2*h/3);
 }
 //--------------------------------------------------------------
 void ofApp::keyReleased(int key){
     if(key == ' ' && start){
         moveable = false;
     }
-}
-//--------------------------------------------------------------
-void ofApp::mouseMoved(int x, int y){
-
-}
-//--------------------------------------------------------------
-void ofApp::mouseDragged(int x, int y, int button){
-
-}
-//--------------------------------------------------------------
-void ofApp::mousePressed(int x, int y, int button){
-//    int w = ofGetWidth() / NUM_COLS;
-//    int h = ofGetHeight() / NUM_ROWS;
-//    //top row
-//    //left
-//    if(x > 0 && x < w/3 && y < h/3 && y > 0){
-//        moveForwardLeft();
-//    //middle
-//    } else if(x > w/3 && x < 2*(w/3) && y < h/3 && y > 0){
-//        moveForward();
-//    //right
-//    } else if(x > 2*(w/3) && x < w && y < h/3 && y > 0){
-//        moveForwardRight();
-//
-//    //middle row
-//    //left
-//    } else if(x > 0 && x < (w/3) && y < 2*(h/3) && y > (h/3) ){
-//        moveLeft();
-//    //middle
-//    } else if(x > w/3 && x < 2*(w/3) && y < 2*(h/3) && y > (h/3) ){
-//        serial.writeByte('s');
-//    //right1
-//    } else if (x > 2*(w/3) && x < w && y < 2*(h/3) && y > (h/3)){
-//        moveRight();
-//
-//   //botton row
-//    //left
-//    } else if(x > 0 && x < w/3 && y > 2*(h/3) && y < h ){
-//        moveBackwardsLeft();
-//    //middle
-//    } else if(x > w/3 && x < 2*(w/3) && y > 2*(h/3) && y < h){
-//        moveBackwards();
-//    //right
-//    } else if(x > 2*(w/3) && x < w && y > 2*(h/3) && y < h ){
-//        moveBackwardsRight();
-//    }
 }
 //--------------------------------------------------------------
 void ofApp::moveForwardLeft(){
@@ -593,20 +489,5 @@ void ofApp::moveRight(){
 void ofApp::moveLeft(){
     serial.writeByte('a');
 }
-//--------------------------------------------------------------
-void ofApp::mouseReleased(int x, int y, int button){
 
-}
-//--------------------------------------------------------------
-void ofApp::windowResized(int w, int h){
-
-}
-//--------------------------------------------------------------
-void ofApp::gotMessage(ofMessage msg){
-
-}
-//--------------------------------------------------------------
-void ofApp::dragEvent(ofDragInfo dragInfo){
-
-}
 
